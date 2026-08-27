@@ -10,7 +10,7 @@ DEFAULT_STYLE = REFERENCE_DIR / "Elena_style_guide_v2.docx"
 ROOT_INSTRUCTIONS = Path(__file__).resolve().parent / "Odigies_v5.docx"
 ROOT_STYLE = Path(__file__).resolve().parent / "Elena_style_guide_v2.docx"
 CHILD_ORIENTATION = Path(__file__).resolve().parent / "Desmeftiki_Entoli_Talenta_Paidiou_v7.docx"
-ADULT_ORIENTATION = Path(__file__).resolve().parent / "Desmeftiki_Entoli_Talenta_Enilikou_v1.docx"
+ADULT_ORIENTATION = Path(__file__).resolve().parent / "Desmeftiki_Entoli_Talenta_Enilikou_v2.docx"
 
 
 def docx_text(source) -> str:

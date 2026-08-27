@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from parser import parse_astrodienst_pdf
-from prompts import build_master_prompt, fmt
+from prompts import build_master_prompt, build_orientation_source, fmt
 from docx_builder import build_audit_docx, build_analysis_docx, build_orientation_docx
 from generator import generate_analysis
 from reference_loader import docx_text, load_default_references, load_orientation_command
@@ -299,7 +299,8 @@ with tab7:
         st.caption("Δεν ζητούνται πρόσθετα προσωπικά, ψυχολογικά, σχολικά ή οικονομικά δεδομένα. Η υπηρεσία παρουσιάζει μόνο συμβολικές πιθανότητες προς διερεύνηση από τον ελεγμένο χάρτη.")
 
         command_text=load_orientation_command(command_key)
-        orientation_doc=build_orientation_docx(name_override or chart.name,service_title,context,command_text,st.session_state.analysis)
+        orientation_source=build_orientation_source(chart)
+        orientation_doc=build_orientation_docx(name_override or chart.name,service_title,context,command_text,orientation_source)
         st.download_button("⬇️ Λήψη εντολής προσανατολισμού για ChatGPT/Claude",orientation_doc,file_name=output_name,type="primary",use_container_width=True)
         st.caption("Ανέβασε αυτό το ένα Word στο ChatGPT ή στο Claude και ζήτησε να ακολουθήσει τη δεσμευτική εντολή που περιέχει.")
 
@@ -308,7 +309,8 @@ with tab7:
         if st.button("Έλεγχος επαγγελματικού προσανατολισμού",disabled=not orientation_result,use_container_width=True):
             result_bytes=orientation_result.getvalue()
             result_text=docx_text(result_bytes)
-            check=validate_orientation(chart,result_text,personal)
+            orientation_personal={"Όνομα": name_override or chart.name}
+            check=validate_orientation(chart,result_text,orientation_personal,service)
             st.session_state.orientation_validation=check
             st.session_state.orientation_docx_bytes=result_bytes
             st.session_state.orientation_docx_name=orientation_result.name

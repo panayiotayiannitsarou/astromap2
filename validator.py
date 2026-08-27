@@ -678,6 +678,7 @@ class OrientationValidationResult:
     wrong_house_claims: list = field(default_factory=list)
     unauthorized_personal_claims: list = field(default_factory=list)
     missing_core_topics: list = field(default_factory=list)
+    technical_mismatches: list = field(default_factory=list)
 
     def summary(self):
         if self.ok:
@@ -686,6 +687,7 @@ class OrientationValidationResult:
         if self.wrong_house_claims: parts.append(f"{len(self.wrong_house_claims)} λανθασμένες τοποθετήσεις")
         if self.unauthorized_personal_claims: parts.append(f"{len(self.unauthorized_personal_claims)} μη δηλωμένα προσωπικά στοιχεία")
         if self.missing_core_topics: parts.append("λείπουν: " + ", ".join(self.missing_core_topics))
+        if self.technical_mismatches: parts.append(f"{len(self.technical_mismatches)} ασυμφωνίες όψης/orb/βαρύτητας")
         return "Ο προσανατολισμός απορρίφθηκε: " + "· ".join(parts) + "."
 
     def details_lines(self):
@@ -695,16 +697,74 @@ class OrientationValidationResult:
         for category,snippet in self.unauthorized_personal_claims:
             lines.append(f"Μη δηλωμένο προσωπικό στοιχείο ({category}): «{snippet}»")
         for topic in self.missing_core_topics: lines.append(f"Δεν εντοπίστηκε βασικό μέρος: {topic}.")
+        for message in self.technical_mismatches: lines.append(message)
         return lines
 
 
-def validate_orientation(chart, text: str, personal: dict | None = None) -> OrientationValidationResult:
-    topics={
+def _orientation_technical_mismatches(chart, text: str) -> list[str]:
+    """Ελέγχει κάθε αριθμητικό orb που επέλεξε να γράψει το μοντέλο.
+
+    Δεν απαιτεί να χρησιμοποιηθούν όλες οι όψεις του χάρτη. Αν όμως εμφανιστεί
+    orb, πρέπει στο ίδιο τοπικό τμήμα να υπάρχει το σωστό ζεύγος, ο σωστός
+    τύπος και η σωστή κατηγορία βαρύτητας από το registry του Chart.
+    """
+    mismatches = []
+    orb_re = re.compile(r"\d{1,2}°\d{1,2}[′']")
+    for match in orb_re.finditer(text):
+        raw_orb = match.group(0).replace("'", "′")
+        candidates = [a for a in chart.aspects if a.orb_text == raw_orb]
+        start, end = max(0, match.start() - 230), min(len(text), match.end() + 180)
+        fragment = text[start:end]
+        if not candidates:
+            mismatches.append(f"Orb {raw_orb}: δεν υπάρχει στα ελεγμένα δεδομένα του χάρτη.")
+            continue
+        valid = False
+        for a in candidates:
+            if not (re.search(_name_pattern(a.first), fragment, re.IGNORECASE)
+                    and re.search(_name_pattern(a.second), fragment, re.IGNORECASE)):
+                continue
+            type_ok = bool(re.search(_ASPECT_FORMS[a.aspect], fragment, re.IGNORECASE))
+            weight_ok = bool(re.search(_WEIGHT_FORMS[a.weight], fragment, re.IGNORECASE))
+            if type_ok and weight_ok:
+                valid = True
+                break
+        if not valid:
+            mismatches.append(
+                f"Orb {raw_orb}: δεν συνδέεται τοπικά με το σωστό ζεύγος, τύπο όψης και κατηγορία βαρύτητας."
+            )
+    return list(dict.fromkeys(mismatches))
+
+
+def validate_orientation(chart, text: str, personal: dict | None = None,
+                         service: str = "") -> OrientationValidationResult:
+    common_topics={
         "ταλέντα": r"ταλέντ|ικανότητ|δυνατότητ",
-        "επαγγελματικές κατευθύνσεις": r"επαγγελματικ(?:ές|η)\s+(?:οικογένει|κατευθύν)|κλάδ|πεδί[αο]",
+        "επαγγελματικές οικογένειες": r"επαγγελματικ(?:ές|η)\s+(?:οικογένει|κατευθύν)|κλάδ|πεδί[αο]",
         "πρακτική διερεύνηση": r"δραστηριότητ|πείραμα|δοκιμ|επόμενο\s+βήμα",
+        "Παράρτημα τεκμηρίωσης": r"Παράρτημα[^\r\n]{0,80}(?:τεκμηρίωσ|ελέγχ)",
     }
+    if service == "Παιδί/έφηβος":
+        topics = {
+            **common_topics,
+            "τρόπος μάθησης": r"τρόπος\s+μάθησης|μάθηση\s+και\s+δημιουργία",
+            "οδηγίες προς γονείς/εκπαιδευτικούς": r"γον(?:είς|έα)|εκπαιδευτικ",
+            "ερωτήσεις συζήτησης": r"ερωτήσεις\s+(?:για\s+)?συζήτηση",
+        }
+    else:
+        topics = {
+            **common_topics,
+            "εργασιακά περιβάλλοντα": r"εργασιακ(?:ά|ό)\s+περιβάλλον",
+            "τελική σύνθεση": r"τελική\s+σύνθεση",
+            "τεκμηρίωση κάθε ταλέντου": r"πώς\s+τεκμηριώνεται",
+            "πιθανή έκφραση κάθε ταλέντου": r"πώς\s+μπορεί\s+να\s+εκφράζεται",
+            "πιθανή αξιοποίηση κάθε ταλέντου": r"πώς\s+μπορεί\s+να\s+αξιοποιείται",
+            "ασφαλής δοκιμή κάθε ταλέντου": r"ασφαλ(?:ής|ή)\s+δοκιμή\s+διερεύνησης",
+        }
     missing=[label for label,pattern in topics.items() if not re.search(pattern,text,re.IGNORECASE)]
     wrong=_location_claim_errors(chart,text)
     unauthorized=_unauthorized_personal_claims(personal,text)
-    return OrientationValidationResult(not (wrong or unauthorized or missing),wrong,unauthorized,missing)
+    technical=_orientation_technical_mismatches(chart,text)
+    return OrientationValidationResult(
+        not (wrong or unauthorized or missing or technical),
+        wrong, unauthorized, missing, technical,
+    )
