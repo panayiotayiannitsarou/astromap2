@@ -2,11 +2,11 @@ import streamlit as st
 import pandas as pd
 from parser import parse_astrodienst_pdf
 from prompts import build_master_prompt, fmt
-from docx_builder import build_audit_docx, build_analysis_docx
+from docx_builder import build_audit_docx, build_analysis_docx, build_orientation_docx
 from generator import generate_analysis
-from reference_loader import docx_text, load_default_references
+from reference_loader import docx_text, load_default_references, load_orientation_command
 from astrology import movement_text, OPPOSITE_ANGLE
-from validator import validate_analysis, validate_rewrite
+from validator import validate_analysis, validate_rewrite, validate_orientation
 
 st.set_page_config(page_title="AstroCheck Pro", page_icon="✦", layout="wide")
 st.markdown("""<style>
@@ -19,6 +19,7 @@ if 'validation' not in st.session_state: st.session_state.validation=None
 if 'analysis_docx_bytes' not in st.session_state: st.session_state.analysis_docx_bytes=None
 if 'analysis_docx_name' not in st.session_state: st.session_state.analysis_docx_name=''
 if 'rewrite_validation' not in st.session_state: st.session_state.rewrite_validation=None
+if 'orientation_validation' not in st.session_state: st.session_state.orientation_validation=None
 if 'uploader_gen' not in st.session_state: st.session_state.uploader_gen=0  # αλλάζει τα keys των uploaders ώστε το "Νέα ανάλυση" να τους αδειάζει πραγματικά
 
 try:
@@ -61,15 +62,15 @@ with st.sidebar:
         st.session_state.analysis_docx_bytes = None
         st.session_state.analysis_docx_name = ''
         st.session_state.uploader_gen += 1  # αναγκάζει τους file_uploader να ξαναγίνουν "άδειοι"
-        for k in ('confirmed', 'profession', 'family', 'projects', 'habits', 'experiences', 'pasted_analysis', 'rewrite_validation'):
+        for k in ('confirmed', 'profession', 'family', 'projects', 'habits', 'experiences', 'pasted_analysis', 'rewrite_validation', 'orientation_validation', 'orientation_service'):
             st.session_state.pop(k, None)
         st.rerun()
 
-tab1,tab2,tab3,tab4,tab5,tab6=st.tabs(["1 · Αρχεία","2 · Έλεγχος","3 · Προσωπικό πλαίσιο","4 · Δημιουργία","5 · Τεχνικό Word","6 · Τελική αναδιατύπωση"])
+tab1,tab2,tab3,tab4,tab5,tab6,tab7=st.tabs(["1 · Αρχεία","2 · Έλεγχος","3 · Προσωπικό πλαίσιο","4 · Δημιουργία","5 · Τεχνικό Word","6 · Τελική αναδιατύπωση","7 · Επαγγελματικός προσανατολισμός"])
 
 with tab1:
     st.subheader("Ανέβασε μόνο το νέο PDF")
-    st.success("✓ Οι οδηγίες v5.1 και ο καθαρός οδηγός ύφους είναι μόνιμα ενσωματωμένα.")
+    st.success("✓ Οι οδηγίες v5.3, ο καθαρός οδηγός ύφους και οι δύο προαιρετικές εντολές επαγγελματικού προσανατολισμού είναι ενσωματωμένα.")
     pdf=st.file_uploader("Νέο Astrodienst Data Sheet",type=['pdf'],key=f"pdf_{st.session_state.uploader_gen}")
     with st.expander("Προχωρημένα: προαιρετική προσωρινή αντικατάσταση"):
         instructions=st.file_uploader("Νεότερες οδηγίες",type=['docx'],key=f"instructions_{st.session_state.uploader_gen}")
@@ -89,7 +90,7 @@ with tab1:
 
 instructions_text = docx_text(instructions.getvalue()) if instructions else default_instructions_text
 style_text = docx_text(style.getvalue()) if style else default_style_text
-instructions_name = instructions.name if instructions else "Ενσωματωμένες οδηγίες v5.1"
+instructions_name = instructions.name if instructions else "Ενσωματωμένες οδηγίες v5.3"
 style_name = style.name if style else "Ενσωματωμένος καθαρός οδηγός ύφους"
 
 chart=st.session_state.chart
@@ -142,7 +143,7 @@ with tab4:
     st.subheader("Δημιουργία πλήρους ανάλυσης")
     if not chart: st.warning("Δεν υπάρχει ελεγμένος χάρτης. Ξεκίνα από την καρτέλα «1 · Αρχεία».")
     else:
-        checklist={"12 ακμές":len(chart.cusps)==12,"Βόρειος Δεσμός":any(p.name=='Βόρειος Δεσμός' for p in chart.points),"Νότιος Δεσμός":any(p.name=='Νότιος Δεσμός' for p in chart.points),"Πίνακας όψεων":bool(chart.aspects),"Χειροκίνητη επιβεβαίωση (καρτέλα 2)":st.session_state.get('confirmed',False),"Οδηγίες v5.1 μόνιμα ενσωματωμένες":bool(instructions_text),"Καθαρός οδηγός ύφους ενσωματωμένος":bool(style_text)}
+        checklist={"12 ακμές":len(chart.cusps)==12,"Βόρειος Δεσμός":any(p.name=='Βόρειος Δεσμός' for p in chart.points),"Νότιος Δεσμός":any(p.name=='Νότιος Δεσμός' for p in chart.points),"Πίνακας όψεων":bool(chart.aspects),"Χειροκίνητη επιβεβαίωση (καρτέλα 2)":st.session_state.get('confirmed',False),"Οδηγίες v5.3 μόνιμα ενσωματωμένες":bool(instructions_text),"Καθαρός οδηγός ύφους ενσωματωμένος":bool(style_text)}
         ready=all(checklist.values())
         with st.expander("Λίστα ελέγχου πριν τη δημιουργία", expanded=not ready):
             st.dataframe(pd.DataFrame([{"Έλεγχος":k,"Κατάσταση":"✓" if v else "Λείπει"} for k,v in checklist.items()]),use_container_width=True,hide_index=True)
@@ -271,3 +272,52 @@ with tab6:
                 with st.expander("Λεπτομέρειες",expanded=True):
                     for line in result.details_lines(): st.write("•",line)
                 st.button("Λήψη τελικής αναδιατύπωσης — κλειδωμένη",disabled=True,use_container_width=True)
+
+with tab7:
+    st.subheader("Προαιρετική υπηρεσία επαγγελματικού προσανατολισμού")
+    st.info("Η υπηρεσία αυτή είναι χωριστή από τη βασική ανάλυση των 12 Οίκων και ενεργοποιείται μόνο όταν την έχει επιλέξει ο πελάτης.")
+    service=st.selectbox(
+        "Επιλεγμένη υπηρεσία",
+        ["Καμία", "Παιδί/έφηβος", "Ενήλικας σε αλλαγή επαγγελματικής πορείας"],
+        key='orientation_service',
+    )
+    if service == "Καμία":
+        st.caption("Δεν θα δημιουργηθεί επαγγελματικός προσανατολισμός.")
+    elif not (chart and st.session_state.analysis and st.session_state.validation and st.session_state.validation.ok):
+        st.warning("Πρώτα ολοκλήρωσε και έλεγξε την τεχνική ανάλυση στις καρτέλες 4–5.")
+    else:
+        context={"Όνομα": name_override or chart.name, "Τύπος υπηρεσίας": service}
+        if service == "Παιδί/έφηβος":
+            command_key="Παιδί/έφηβος"
+            service_title="Ανάδειξη Ταλέντων και Επαγγελματικός Προσανατολισμός Παιδιού/Εφήβου"
+            output_name="AstroCheck_Prosanatolismos_Paidiou_Efivou.docx"
+        else:
+            command_key="Ενήλικας"
+            service_title="Επαγγελματικός Αναπροσανατολισμός Ενήλικα"
+            output_name="AstroCheck_Anaprosanatolismos_Enilikou.docx"
+
+        st.caption("Δεν ζητούνται πρόσθετα προσωπικά, ψυχολογικά, σχολικά ή οικονομικά δεδομένα. Η υπηρεσία παρουσιάζει μόνο συμβολικές πιθανότητες προς διερεύνηση από τον ελεγμένο χάρτη.")
+
+        command_text=load_orientation_command(command_key)
+        orientation_doc=build_orientation_docx(name_override or chart.name,service_title,context,command_text,st.session_state.analysis)
+        st.download_button("⬇️ Λήψη εντολής προσανατολισμού για ChatGPT/Claude",orientation_doc,file_name=output_name,type="primary",use_container_width=True)
+        st.caption("Ανέβασε αυτό το ένα Word στο ChatGPT ή στο Claude και ζήτησε να ακολουθήσει τη δεσμευτική εντολή που περιέχει.")
+
+        st.divider()
+        orientation_result=st.file_uploader("Αποτέλεσμα επαγγελματικού προσανατολισμού (.docx)",type=['docx'],key=f"orientation_result_{st.session_state.uploader_gen}")
+        if st.button("Έλεγχος επαγγελματικού προσανατολισμού",disabled=not orientation_result,use_container_width=True):
+            result_bytes=orientation_result.getvalue()
+            result_text=docx_text(result_bytes)
+            check=validate_orientation(chart,result_text,personal)
+            st.session_state.orientation_validation=check
+            st.session_state.orientation_docx_bytes=result_bytes
+            st.session_state.orientation_docx_name=orientation_result.name
+        check=st.session_state.get('orientation_validation')
+        if check:
+            if check.ok:
+                st.markdown(f'<div class="ok">{check.summary()}</div>',unsafe_allow_html=True)
+                st.download_button("⬇️ Λήψη ελεγμένου επαγγελματικού προσανατολισμού",st.session_state.orientation_docx_bytes,file_name=st.session_state.orientation_docx_name,use_container_width=True)
+            else:
+                st.markdown(f'<div class="warn">⚠ {check.summary()}</div>',unsafe_allow_html=True)
+                with st.expander("Λεπτομέρειες",expanded=True):
+                    for line in check.details_lines(): st.write("•",line)

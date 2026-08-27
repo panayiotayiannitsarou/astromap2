@@ -670,3 +670,41 @@ def validate_rewrite(chart, source_text: str, rewrite_text: str,
               or wrong_house_claims or unauthorized)
     return RewriteValidationResult(ok, missing_houses, missing_source_sections,
                                    invented_sections, wrong_house_claims, unauthorized)
+
+
+@dataclass
+class OrientationValidationResult:
+    ok: bool
+    wrong_house_claims: list = field(default_factory=list)
+    unauthorized_personal_claims: list = field(default_factory=list)
+    missing_core_topics: list = field(default_factory=list)
+
+    def summary(self):
+        if self.ok:
+            return "✓ Ο προαιρετικός επαγγελματικός προσανατολισμός πέρασε τον βασικό έλεγχο πηγών και αμετάβλητων δεδομένων."
+        parts=[]
+        if self.wrong_house_claims: parts.append(f"{len(self.wrong_house_claims)} λανθασμένες τοποθετήσεις")
+        if self.unauthorized_personal_claims: parts.append(f"{len(self.unauthorized_personal_claims)} μη δηλωμένα προσωπικά στοιχεία")
+        if self.missing_core_topics: parts.append("λείπουν: " + ", ".join(self.missing_core_topics))
+        return "Ο προσανατολισμός απορρίφθηκε: " + "· ".join(parts) + "."
+
+    def details_lines(self):
+        lines=[]
+        for point,claimed,expected,snippet in self.wrong_house_claims:
+            lines.append(f"{point}: δηλώνεται στον {claimed}ο αντί στον {expected}ο Οίκο: «{snippet}»")
+        for category,snippet in self.unauthorized_personal_claims:
+            lines.append(f"Μη δηλωμένο προσωπικό στοιχείο ({category}): «{snippet}»")
+        for topic in self.missing_core_topics: lines.append(f"Δεν εντοπίστηκε βασικό μέρος: {topic}.")
+        return lines
+
+
+def validate_orientation(chart, text: str, personal: dict | None = None) -> OrientationValidationResult:
+    topics={
+        "ταλέντα": r"ταλέντ|ικανότητ|δυνατότητ",
+        "επαγγελματικές κατευθύνσεις": r"επαγγελματικ(?:ές|η)\s+(?:οικογένει|κατευθύν)|κλάδ|πεδί[αο]",
+        "πρακτική διερεύνηση": r"δραστηριότητ|πείραμα|δοκιμ|επόμενο\s+βήμα",
+    }
+    missing=[label for label,pattern in topics.items() if not re.search(pattern,text,re.IGNORECASE)]
+    wrong=_location_claim_errors(chart,text)
+    unauthorized=_unauthorized_personal_claims(personal,text)
+    return OrientationValidationResult(not (wrong or unauthorized or missing),wrong,unauthorized,missing)
