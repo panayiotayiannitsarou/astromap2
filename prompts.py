@@ -74,7 +74,7 @@ def house_section(chart, number):
 Στη συγγραφή αυτού του Οίκου συμπερίλαβε υποχρεωτικά: «Σύνθεση με τον υπόλοιπο χάρτη», «Η πρακτική εφαρμογή» και πλαίσιο σύνοψης με Βασική δύναμη, Βασική πρόκληση, Κυβερνήτη και Τελικό συμπέρασμα."""
 
 def build_master_prompt(chart, personal, language, instructions_text, style_text,
-                        instructions_name="Ενσωματωμένες οδηγίες v5",
+                 instructions_name="Ενσωματωμένες οδηγίες v5.1",
                         style_name="Ενσωματωμένος καθαρός οδηγός ύφους"):
     # Το διορθωμένο όνομα (name_override στο tab3) είναι η πηγή αλήθειας όταν
     # δίνεται· το chart.name (ωμή εξαγωγή από το PDF) είναι μόνο fallback.

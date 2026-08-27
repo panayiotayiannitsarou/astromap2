@@ -69,7 +69,7 @@ tab1,tab2,tab3,tab4,tab5,tab6=st.tabs(["1 · Αρχεία","2 · Έλεγχος"
 
 with tab1:
     st.subheader("Ανέβασε μόνο το νέο PDF")
-    st.success("✓ Οι οδηγίες v5 και ο καθαρός οδηγός ύφους είναι μόνιμα ενσωματωμένα.")
+    st.success("✓ Οι οδηγίες v5.1 και ο καθαρός οδηγός ύφους είναι μόνιμα ενσωματωμένα.")
     pdf=st.file_uploader("Νέο Astrodienst Data Sheet",type=['pdf'],key=f"pdf_{st.session_state.uploader_gen}")
     with st.expander("Προχωρημένα: προαιρετική προσωρινή αντικατάσταση"):
         instructions=st.file_uploader("Νεότερες οδηγίες",type=['docx'],key=f"instructions_{st.session_state.uploader_gen}")
@@ -89,7 +89,7 @@ with tab1:
 
 instructions_text = docx_text(instructions.getvalue()) if instructions else default_instructions_text
 style_text = docx_text(style.getvalue()) if style else default_style_text
-instructions_name = instructions.name if instructions else "Ενσωματωμένες οδηγίες v5"
+instructions_name = instructions.name if instructions else "Ενσωματωμένες οδηγίες v5.1"
 style_name = style.name if style else "Ενσωματωμένος καθαρός οδηγός ύφους"
 
 chart=st.session_state.chart
@@ -142,7 +142,7 @@ with tab4:
     st.subheader("Δημιουργία πλήρους ανάλυσης")
     if not chart: st.warning("Δεν υπάρχει ελεγμένος χάρτης. Ξεκίνα από την καρτέλα «1 · Αρχεία».")
     else:
-        checklist={"12 ακμές":len(chart.cusps)==12,"Βόρειος Δεσμός":any(p.name=='Βόρειος Δεσμός' for p in chart.points),"Νότιος Δεσμός":any(p.name=='Νότιος Δεσμός' for p in chart.points),"Πίνακας όψεων":bool(chart.aspects),"Χειροκίνητη επιβεβαίωση (καρτέλα 2)":st.session_state.get('confirmed',False),"Οδηγίες v5 μόνιμα ενσωματωμένες":bool(instructions_text),"Καθαρός οδηγός ύφους ενσωματωμένος":bool(style_text)}
+        checklist={"12 ακμές":len(chart.cusps)==12,"Βόρειος Δεσμός":any(p.name=='Βόρειος Δεσμός' for p in chart.points),"Νότιος Δεσμός":any(p.name=='Νότιος Δεσμός' for p in chart.points),"Πίνακας όψεων":bool(chart.aspects),"Χειροκίνητη επιβεβαίωση (καρτέλα 2)":st.session_state.get('confirmed',False),"Οδηγίες v5.1 μόνιμα ενσωματωμένες":bool(instructions_text),"Καθαρός οδηγός ύφους ενσωματωμένος":bool(style_text)}
         ready=all(checklist.values())
         with st.expander("Λίστα ελέγχου πριν τη δημιουργία", expanded=not ready):
             st.dataframe(pd.DataFrame([{"Έλεγχος":k,"Κατάσταση":"✓" if v else "Λείπει"} for k,v in checklist.items()]),use_container_width=True,hide_index=True)
@@ -181,7 +181,7 @@ with tab4:
         with col_manual:
             with st.container(border=True):
                 st.markdown("#### 📋 Χειροκίνητη διαδρομή")
-                st.caption("Χρησιμοποίησε την εντολή σε ChatGPT/Claude και ανέβασε εδώ το τελικό Word. Η παράδοση παραμένει κλειδωμένη μέχρι να περάσει τον validator.")
+                st.caption("Το ChatGPT/Claude κάνει μόνο αυτοέλεγχο. Ανέβασε εδώ το Word ώστε ο πραγματικός μηχανικός validator του AstroCheck Pro να αποφασίσει αν μπορεί να παραδοθεί.")
                 uploaded_analysis=st.file_uploader(
                     "Τελική ανάλυση από ChatGPT/Claude (.docx)",
                     type=['docx'],
