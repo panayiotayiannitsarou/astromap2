@@ -738,10 +738,18 @@ def _orientation_technical_mismatches(chart, text: str) -> list[str]:
 def validate_orientation(chart, text: str, personal: dict | None = None,
                          service: str = "") -> OrientationValidationResult:
     common_topics={
+        "προφίλ": r"\bπροφίλ\b",
         "ταλέντα": r"ταλέντ|ικανότητ|δυνατότητ",
-        "επαγγελματικές οικογένειες": r"επαγγελματικ(?:ές|η)\s+(?:οικογένει|κατευθύν)|κλάδ|πεδί[αο]",
+        "Επαγγελματικοί Τομείς προς Διερεύνηση": r"επαγγελματικ(?:οί|ούς)\s+τομ(?:είς|έα)(?:\s+προς\s+διερεύνηση)?",
+        "ενδεικτικά επαγγέλματα ανά τομέα": r"ενδεικτικ(?:ά|ών)\s+επαγγέλματ",
         "πρακτική διερεύνηση": r"δραστηριότητ|πείραμα|δοκιμ|επόμενο\s+βήμα",
+        "σχέδιο 8–12 εβδομάδων": r"8\s*[–-]\s*12\s+εβδομάδ|σχέδιο\s+(?:δοκιμής|διερεύνησης)",
+        "τελική σύνθεση": r"τελική\s+σύνθεση",
         "Παράρτημα τεκμηρίωσης": r"Παράρτημα[^\r\n]{0,80}(?:τεκμηρίωσ|ελέγχ)",
+        "τεκμηρίωση κάθε ταλέντου": r"πώς\s+τεκμηριώνεται",
+        "εμφάνιση κάθε ταλέντου": r"πώς\s+μπορεί\s+να\s+εμφανίζεται",
+        "καλλιέργεια κάθε ταλέντου": r"πώς\s+μπορεί\s+να\s+καλλιεργηθεί",
+        "δραστηριότητα δοκιμής": r"δραστηριότητα\s+δοκιμής",
     }
     if service == "Παιδί/έφηβος":
         topics = {
@@ -754,16 +762,16 @@ def validate_orientation(chart, text: str, personal: dict | None = None,
         topics = {
             **common_topics,
             "εργασιακά περιβάλλοντα": r"εργασιακ(?:ά|ό)\s+περιβάλλον",
-            "τελική σύνθεση": r"τελική\s+σύνθεση",
-            "τεκμηρίωση κάθε ταλέντου": r"πώς\s+τεκμηριώνεται",
-            "πιθανή έκφραση κάθε ταλέντου": r"πώς\s+μπορεί\s+να\s+εκφράζεται",
-            "πιθανή αξιοποίηση κάθε ταλέντου": r"πώς\s+μπορεί\s+να\s+αξιοποιείται",
-            "ασφαλής δοκιμή κάθε ταλέντου": r"ασφαλ(?:ής|ή)\s+δοκιμή\s+διερεύνησης",
+            "πρακτικές οδηγίες προς τον ενήλικα": r"πρακτικ(?:ές|ή)\s+οδηγί|προς\s+τον\s+(?:ενδιαφερόμενο\s+)?ενήλικα",
         }
     missing=[label for label,pattern in topics.items() if not re.search(pattern,text,re.IGNORECASE)]
     wrong=_location_claim_errors(chart,text)
     unauthorized=_unauthorized_personal_claims(personal,text)
     technical=_orientation_technical_mismatches(chart,text)
+    if re.search(r"Τι\s+χρειάζεται\s+επιβεβαίωση\s*:\s*Τι\s+χρειάζεται\s+επιβεβαίωση\s*:", text, re.IGNORECASE):
+        technical.append("Η ετικέτα «Τι χρειάζεται επιβεβαίωση:» επαναλαμβάνεται δύο φορές στην ίδια πρόταση.")
+    if service != "Παιδί/έφηβος" and re.search(r"υποθετικ(?:ό|ο)\s+σενάριο[^\r\n]{0,30}15\s+ετ", text, re.IGNORECASE):
+        technical.append("Η ανάλυση ενηλίκου δεν πρέπει να παρουσιάζεται ως υποθετικό σενάριο 15 ετών.")
     return OrientationValidationResult(
         not (wrong or unauthorized or missing or technical),
         wrong, unauthorized, missing, technical,

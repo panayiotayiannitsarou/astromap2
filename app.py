@@ -70,7 +70,7 @@ tab1,tab2,tab3,tab4,tab5,tab6,tab7=st.tabs(["1 · Αρχεία","2 · Έλεγχ
 
 with tab1:
     st.subheader("Ανέβασε μόνο το νέο PDF")
-    st.success("✓ Οι οδηγίες v5.3, ο καθαρός οδηγός ύφους και οι δύο προαιρετικές εντολές επαγγελματικού προσανατολισμού είναι ενσωματωμένα.")
+    st.success("✓ Οι οδηγίες v5.3, ο καθαρός οδηγός ύφους και η κοινή εντολή επαγγελματικού προσανατολισμού με δύο λειτουργίες είναι ενσωματωμένα.")
     pdf=st.file_uploader("Νέο Astrodienst Data Sheet",type=['pdf'],key=f"pdf_{st.session_state.uploader_gen}")
     with st.expander("Προχωρημένα: προαιρετική προσωρινή αντικατάσταση"):
         instructions=st.file_uploader("Νεότερες οδηγίες",type=['docx'],key=f"instructions_{st.session_state.uploader_gen}")
@@ -288,17 +288,15 @@ with tab7:
     else:
         context={"Όνομα": name_override or chart.name, "Τύπος υπηρεσίας": service}
         if service == "Παιδί/έφηβος":
-            command_key="Παιδί/έφηβος"
             service_title="Ανάδειξη Ταλέντων και Επαγγελματικός Προσανατολισμός Παιδιού/Εφήβου"
             output_name="AstroCheck_Prosanatolismos_Paidiou_Efivou.docx"
         else:
-            command_key="Ενήλικας"
-            service_title="Επαγγελματικός Αναπροσανατολισμός Ενήλικα"
+            service_title="Ανάδειξη Ταλέντων και Επαγγελματικός Αναπροσανατολισμός Ενήλικα"
             output_name="AstroCheck_Anaprosanatolismos_Enilikou.docx"
 
         st.caption("Δεν ζητούνται πρόσθετα προσωπικά, ψυχολογικά, σχολικά ή οικονομικά δεδομένα. Η υπηρεσία παρουσιάζει μόνο συμβολικές πιθανότητες προς διερεύνηση από τον ελεγμένο χάρτη.")
 
-        command_text=load_orientation_command(command_key)
+        command_text=load_orientation_command(service)
         orientation_source=build_orientation_source(chart)
         orientation_doc=build_orientation_docx(name_override or chart.name,service_title,context,command_text,orientation_source)
         st.download_button("⬇️ Λήψη εντολής προσανατολισμού για ChatGPT/Claude",orientation_doc,file_name=output_name,type="primary",use_container_width=True)

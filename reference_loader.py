@@ -9,8 +9,7 @@ DEFAULT_INSTRUCTIONS = REFERENCE_DIR / "Odigies_v5.docx"
 DEFAULT_STYLE = REFERENCE_DIR / "Elena_style_guide_v2.docx"
 ROOT_INSTRUCTIONS = Path(__file__).resolve().parent / "Odigies_v5.docx"
 ROOT_STYLE = Path(__file__).resolve().parent / "Elena_style_guide_v2.docx"
-CHILD_ORIENTATION = Path(__file__).resolve().parent / "Desmeftiki_Entoli_Talenta_Paidiou_v7.docx"
-ADULT_ORIENTATION = Path(__file__).resolve().parent / "Desmeftiki_Entoli_Talenta_Enilikou_v2.docx"
+COMMON_ORIENTATION = Path(__file__).resolve().parent / "Desmeftiki_Entoli_Epaggelmatikou_Prosanatolismou_Koini_v1.docx"
 
 
 def docx_text(source) -> str:
@@ -38,7 +37,6 @@ def load_default_references() -> tuple[str, str]:
 
 
 def load_orientation_command(service: str) -> str:
-    path = CHILD_ORIENTATION if service == "Παιδί/έφηβος" else ADULT_ORIENTATION
-    if not path.exists():
-        raise FileNotFoundError(f"Λείπει η εντολή προσανατολισμού: {path.name}")
-    return docx_text(path)
+    if not COMMON_ORIENTATION.exists():
+        raise FileNotFoundError(f"Λείπει η κοινή εντολή προσανατολισμού: {COMMON_ORIENTATION.name}")
+    return docx_text(COMMON_ORIENTATION)
