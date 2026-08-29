@@ -735,8 +735,48 @@ def _orientation_technical_mismatches(chart, text: str) -> list[str]:
     return list(dict.fromkeys(mismatches))
 
 
+def _orientation_audit_errors(chart, audit_text: str) -> list[str]:
+    """Ελέγχει το τεχνικό δελτίο της απλής παρουσίασης ή το παράρτημα
+    της αναλυτικής: ακριβή τοπική αντιστοίχιση και κάλυψη των 5 στενότερων.
+    """
+    errors = []
+    if not audit_text.strip():
+        return ["Λείπει το εσωτερικό τεχνικό δελτίο ελέγχου."]
+    if not re.search(r"Παράρτημα[^\r\n]{0,100}(?:τεκμηρίωσ|ελέγχ)|τεχνικ[^\r\n]{0,80}δελτί", audit_text, re.IGNORECASE):
+        errors.append("Το τεχνικό δελτίο δεν έχει αναγνωρίσιμη ενότητα ελέγχου τεκμηρίωσης.")
+    if not re.search(r"τουλάχιστον\s+δύο\s+διακριτ", audit_text, re.IGNORECASE):
+        errors.append("Το τεχνικό δελτίο δεν δηλώνει ότι κάθε ταλέντο στηρίχθηκε σε τουλάχιστον δύο διακριτούς δείκτες.")
+    if not re.search(r"(?:ιεράρχηση|βαρύτητα).{0,120}(?:Στεν|Ισχυρ|Κανονικ|Πλατι)", audit_text, re.IGNORECASE | re.DOTALL):
+        errors.append("Το τεχνικό δελτίο δεν δηλώνει καθαρά την ιεράρχηση βαρύτητας των όψεων.")
+    errors.extend(_orientation_technical_mismatches(chart, audit_text))
+    for aspect in sorted(chart.aspects, key=lambda item: item.orb)[:5]:
+        co, orb_ok, type_ok, weight_ok = _co_occurs_with_orb(
+            audit_text, aspect.first, aspect.second, aspect.orb_text,
+            aspect.aspect, aspect.weight,
+        )
+        if not (co and orb_ok and type_ok and weight_ok):
+            errors.append(
+                f"Η στενή όψη {aspect.first}–{aspect.second} ({aspect.aspect}, orb {aspect.orb_text}, {aspect.weight}) "
+                "δεν τεκμηριώνεται πλήρως στο τεχνικό δελτίο."
+            )
+    return list(dict.fromkeys(errors))
+
+
+def _simple_presentation_technical_terms(text: str) -> list[str]:
+    """Η απλή έκδοση πελάτη δεν πρέπει να εκθέτει τεχνική αστρολογική γλώσσα."""
+    patterns = {
+        "αριθμητικό orb": r"\d{1,2}°\d{1,2}[′']|\borb\b",
+        "πλανήτες/σημεία": r"\b(?:Ήλιος|Σελήνη|Ερμής|Αφροδίτη|Άρης|Δίας|Κρόνος|Ουρανός|Ποσειδώνας|Πλούτωνας|Χείρωνας|Βόρειος\s+Δεσμός|Νότιος\s+Δεσμός|Μεσουράνημα|Ωροσκόπος)\b",
+        "Οίκοι/κυβερνήτες": r"\b(?:\d{1,2}(?:ο|ος|ου)\s+)?Ο[ίι]κ(?:ος|ου|οι|ων)|\bκυβερνήτ",
+        "τεχνικοί τύποι όψεων": r"\b(?:σύνοδος|τρίγωνο|εξάγωνο|τετράγωνο|αντίθεση|χιαστί\s+όψη)\b",
+        "κατηγορίες βαρύτητας": r"Στεν(?:ή|ης)/Ισχυρ|Πλατιά\s+αλλά\s+έγκυρη|Πολύ\s+πλατιά/Δευτερεύουσα",
+    }
+    return [label for label, pattern in patterns.items() if re.search(pattern, text, re.IGNORECASE)]
+
+
 def validate_orientation(chart, text: str, personal: dict | None = None,
-                         service: str = "") -> OrientationValidationResult:
+                         service: str = "", presentation_mode: str = "Αναλυτική με αστρολογική τεκμηρίωση",
+                         audit_text: str | None = None) -> OrientationValidationResult:
     common_topics={
         "προφίλ": r"\bπροφίλ\b",
         "ταλέντα": r"ταλέντ|ικανότητ|δυνατότητ",
@@ -745,16 +785,19 @@ def validate_orientation(chart, text: str, personal: dict | None = None,
         "πρακτική διερεύνηση": r"δραστηριότητ|πείραμα|δοκιμ|επόμενο\s+βήμα",
         "σχέδιο 8–12 εβδομάδων": r"8\s*[–-]\s*12\s+εβδομάδ|σχέδιο\s+(?:δοκιμής|διερεύνησης)",
         "τελική σύνθεση": r"τελική\s+σύνθεση",
-        "Παράρτημα τεκμηρίωσης": r"Παράρτημα[^\r\n]{0,80}(?:τεκμηρίωσ|ελέγχ)",
         "τεκμηρίωση κάθε ταλέντου": r"πώς\s+τεκμηριώνεται",
         "εμφάνιση κάθε ταλέντου": r"πώς\s+μπορεί\s+να\s+εμφανίζεται",
         "καλλιέργεια κάθε ταλέντου": r"πώς\s+μπορεί\s+να\s+καλλιεργηθεί",
         "δραστηριότητα δοκιμής": r"δραστηριότητα\s+δοκιμής",
+        "τρόπος μάθησης και δημιουργίας": r"τρόπος\s+μάθησης|μάθηση\s+και\s+δημιουργία",
+        "δυνατά σημεία που χρειάζονται καλλιέργεια": r"δυνατ(?:ά|ών)\s+σημε(?:ία|ίων)[^\r\n]{0,80}καλλιέργ",
+        "πιθανά εμπόδια": r"πιθαν(?:ά|ών)\s+εμπόδι",
     }
+    if presentation_mode == "Αναλυτική με αστρολογική τεκμηρίωση":
+        common_topics["Παράρτημα τεκμηρίωσης"] = r"Παράρτημα[^\r\n]{0,80}(?:τεκμηρίωσ|ελέγχ)"
     if service == "Παιδί/έφηβος":
         topics = {
             **common_topics,
-            "τρόπος μάθησης": r"τρόπος\s+μάθησης|μάθηση\s+και\s+δημιουργία",
             "οδηγίες προς γονείς/εκπαιδευτικούς": r"γον(?:είς|έα)|εκπαιδευτικ",
             "ερωτήσεις συζήτησης": r"ερωτήσεις\s+(?:για\s+)?συζήτηση",
         }
@@ -762,12 +805,18 @@ def validate_orientation(chart, text: str, personal: dict | None = None,
         topics = {
             **common_topics,
             "εργασιακά περιβάλλοντα": r"εργασιακ(?:ά|ό)\s+περιβάλλον",
-            "πρακτικές οδηγίες προς τον ενήλικα": r"πρακτικ(?:ές|ή)\s+οδηγί|προς\s+τον\s+(?:ενδιαφερόμενο\s+)?ενήλικα",
         }
     missing=[label for label,pattern in topics.items() if not re.search(pattern,text,re.IGNORECASE)]
     wrong=_location_claim_errors(chart,text)
     unauthorized=_unauthorized_personal_claims(personal,text)
     technical=_orientation_technical_mismatches(chart,text)
+    if presentation_mode == "Απλή και πρακτική":
+        exposed = _simple_presentation_technical_terms(text)
+        if exposed:
+            technical.append("Η απλή παρουσίαση περιέχει τεχνικά αστρολογικά δεδομένα: " + ", ".join(exposed) + ".")
+        technical.extend(_orientation_audit_errors(chart, audit_text or ""))
+    else:
+        technical.extend(_orientation_audit_errors(chart, text))
     if re.search(r"Τι\s+χρειάζεται\s+επιβεβαίωση\s*:\s*Τι\s+χρειάζεται\s+επιβεβαίωση\s*:", text, re.IGNORECASE):
         technical.append("Η ετικέτα «Τι χρειάζεται επιβεβαίωση:» επαναλαμβάνεται δύο φορές στην ίδια πρόταση.")
     if service != "Παιδί/έφηβος" and re.search(r"υποθετικ(?:ό|ο)\s+σενάριο[^\r\n]{0,30}15\s+ετ", text, re.IGNORECASE):

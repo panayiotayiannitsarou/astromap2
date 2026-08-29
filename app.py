@@ -62,7 +62,7 @@ with st.sidebar:
         st.session_state.analysis_docx_bytes = None
         st.session_state.analysis_docx_name = ''
         st.session_state.uploader_gen += 1  # αναγκάζει τους file_uploader να ξαναγίνουν "άδειοι"
-        for k in ('confirmed', 'profession', 'family', 'projects', 'habits', 'experiences', 'pasted_analysis', 'rewrite_validation', 'orientation_validation', 'orientation_service'):
+        for k in ('confirmed', 'profession', 'family', 'projects', 'habits', 'experiences', 'pasted_analysis', 'rewrite_validation', 'orientation_validation', 'orientation_service', 'orientation_presentation', 'orientation_docx_bytes', 'orientation_docx_name', 'orientation_audit_docx_bytes'):
             st.session_state.pop(k, None)
         st.rerun()
 
@@ -283,10 +283,23 @@ with tab7:
     )
     if service == "Καμία":
         st.caption("Δεν θα δημιουργηθεί επαγγελματικός προσανατολισμός.")
-    elif not (chart and st.session_state.analysis and st.session_state.validation and st.session_state.validation.ok):
-        st.warning("Πρώτα ολοκλήρωσε και έλεγξε την τεχνική ανάλυση στις καρτέλες 4–5.")
     else:
-        context={"Όνομα": name_override or chart.name, "Τύπος υπηρεσίας": service}
+        presentation=st.selectbox(
+            "Τρόπος παρουσίασης στον πελάτη",
+            ["Απλή και πρακτική", "Αναλυτική με αστρολογική τεκμηρίωση"],
+            key='orientation_presentation',
+            help=("Η απλή παρουσίαση δεν εμφανίζει τεχνική ορολογία στο Word του πελάτη. "
+                  "Η αναλυτική εμφανίζει πλανήτες, Οίκους, όψεις, orb και βαρύτητα."),
+        )
+        if not (chart and st.session_state.analysis and st.session_state.validation and st.session_state.validation.ok):
+            st.warning("Πρώτα ολοκλήρωσε και έλεγξε την τεχνική ανάλυση στις καρτέλες 4–5.")
+            st.stop()
+
+        context={
+            "Όνομα": name_override or chart.name,
+            "Τύπος υπηρεσίας": service,
+            "Τρόπος παρουσίασης": presentation,
+        }
         if service == "Παιδί/έφηβος":
             service_title="Ανάδειξη Ταλέντων και Επαγγελματικός Προσανατολισμός Παιδιού/Εφήβου"
             output_name="AstroCheck_Prosanatolismos_Paidiou_Efivou.docx"
@@ -300,18 +313,52 @@ with tab7:
         orientation_source=build_orientation_source(chart)
         orientation_doc=build_orientation_docx(name_override or chart.name,service_title,context,command_text,orientation_source)
         st.download_button("⬇️ Λήψη εντολής προσανατολισμού για ChatGPT/Claude",orientation_doc,file_name=output_name,type="primary",use_container_width=True)
-        st.caption("Ανέβασε αυτό το ένα Word στο ChatGPT ή στο Claude και ζήτησε να ακολουθήσει τη δεσμευτική εντολή που περιέχει.")
+        if presentation == "Απλή και πρακτική":
+            st.caption("Ανέβασε το Word στο ChatGPT ή στο Claude. Ζήτησε δύο αρχεία: το καθαρό Word του πελάτη και το εσωτερικό τεχνικό δελτίο ελέγχου.")
+            paste_message = """Ακολούθησε πιστά τη δεσμευτική εντολή που περιλαμβάνεται στο έγγραφο και χρησιμοποίησε αποκλειστικά τα ελεγμένα τεχνικά δεδομένα που περιέχει. Μην επινοήσεις προσωπικά, επαγγελματικά ή ψυχολογικά στοιχεία.
+
+Η επιλεγμένη παρουσίαση είναι «Απλή και πρακτική». Παράδωσε δύο χωριστά, ολοκληρωμένα αρχεία Word:
+1. Το καθαρό παραδοτέο του πελάτη, χωρίς πλανήτες, Οίκους, όψεις, orb ή κατηγορίες βαρύτητας.
+2. Το εσωτερικό τεχνικό δελτίο ελέγχου, με την πλήρη τεκμηρίωση που απαιτεί η δεσμευτική εντολή. Το δεύτερο αρχείο δεν παραδίδεται στον πελάτη.
+
+Κάνε προσεκτικό αυτοέλεγχο πριν από την παράδοση. Ο πραγματικός validator θα εκτελεστεί στη συνέχεια μέσα στο AstroCheck Pro."""
+        else:
+            st.caption("Ανέβασε αυτό το ένα Word στο ChatGPT ή στο Claude και ζήτησε να ακολουθήσει τη δεσμευτική εντολή που περιέχει.")
+            paste_message = """Ακολούθησε πιστά τη δεσμευτική εντολή που περιλαμβάνεται στο έγγραφο και χρησιμοποίησε αποκλειστικά τα ελεγμένα τεχνικά δεδομένα που περιέχει. Μην επινοήσεις προσωπικά, επαγγελματικά ή ψυχολογικά στοιχεία.
+
+Η επιλεγμένη παρουσίαση είναι «Αναλυτική με αστρολογική τεκμηρίωση». Δημιούργησε ένα ολοκληρωμένο, καλαίσθητο αρχείο Word για τον πελάτη και συμπερίλαβε στο τέλος το τεχνικό παράρτημα που απαιτεί η δεσμευτική εντολή.
+
+Κάνε προσεκτικό αυτοέλεγχο πριν από την παράδοση. Ο πραγματικός validator θα εκτελεστεί στη συνέχεια μέσα στο AstroCheck Pro."""
+
+        with st.expander("Έτοιμο μήνυμα για επικόλληση στο ChatGPT/Claude", expanded=True):
+            st.code(paste_message, language=None)
 
         st.divider()
         orientation_result=st.file_uploader("Αποτέλεσμα επαγγελματικού προσανατολισμού (.docx)",type=['docx'],key=f"orientation_result_{st.session_state.uploader_gen}")
-        if st.button("Έλεγχος επαγγελματικού προσανατολισμού",disabled=not orientation_result,use_container_width=True):
+        orientation_audit = None
+        if presentation == "Απλή και πρακτική":
+            orientation_audit=st.file_uploader(
+                "Εσωτερικό τεχνικό δελτίο ελέγχου (.docx) — δεν παραδίδεται στον πελάτη",
+                type=['docx'],
+                key=f"orientation_audit_{st.session_state.uploader_gen}",
+            )
+        ready_to_check = bool(orientation_result) and (
+            presentation != "Απλή και πρακτική" or bool(orientation_audit)
+        )
+        if st.button("Έλεγχος επαγγελματικού προσανατολισμού",disabled=not ready_to_check,use_container_width=True):
             result_bytes=orientation_result.getvalue()
             result_text=docx_text(result_bytes)
+            audit_bytes=orientation_audit.getvalue() if orientation_audit else None
+            audit_text=docx_text(audit_bytes) if audit_bytes else None
             orientation_personal={"Όνομα": name_override or chart.name}
-            check=validate_orientation(chart,result_text,orientation_personal,service)
+            check=validate_orientation(
+                chart, result_text, orientation_personal, service,
+                presentation_mode=presentation, audit_text=audit_text,
+            )
             st.session_state.orientation_validation=check
             st.session_state.orientation_docx_bytes=result_bytes
             st.session_state.orientation_docx_name=orientation_result.name
+            st.session_state.orientation_audit_docx_bytes=audit_bytes
         check=st.session_state.get('orientation_validation')
         if check:
             if check.ok:

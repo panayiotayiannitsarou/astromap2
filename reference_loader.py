@@ -9,7 +9,7 @@ DEFAULT_INSTRUCTIONS = REFERENCE_DIR / "Odigies_v5.docx"
 DEFAULT_STYLE = REFERENCE_DIR / "Elena_style_guide_v2.docx"
 ROOT_INSTRUCTIONS = Path(__file__).resolve().parent / "Odigies_v5.docx"
 ROOT_STYLE = Path(__file__).resolve().parent / "Elena_style_guide_v2.docx"
-COMMON_ORIENTATION = Path(__file__).resolve().parent / "Desmeftiki_Entoli_Epaggelmatikou_Prosanatolismou_Koini_v1.docx"
+COMMON_ORIENTATION = Path(__file__).resolve().parent / "Desmeftiki_Entoli_Epaggelmatikou_Prosanatolismou_Koini_v3.docx"
 
 
 def docx_text(source) -> str:
